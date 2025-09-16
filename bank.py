@@ -1,172 +1,230 @@
+import os
 import json
 from datetime import datetime
-import os
+
+class Account:
+    def __init__(self, account_number, balance, customer_id):
+        self.account_number = account_number
+        self.balance = balance
+        self.customer_id = customer_id
+
+    def deposit(self, amount):
+        if amount <= 0:
+            raise ValueError("Deposit amount must be positive.")
+        self.balance += amount
+
+    def withdraw(self, amount):
+        if amount <= 0:
+            raise ValueError("Withdrawal amount must be positive.")
+        if amount > self.balance:
+            raise ValueError("Insufficient balance.")
+        self.balance -= amount
+
+    def get_balance(self):
+        return self.balance
+
+class SavingAccount(Account):
+    interestRate = 0.03 
+
+    def __init__(self, account_number, balance, customer_id, **kwargs):
+        super().__init__(account_number, balance, customer_id)
+    def addMonthlyInterest(self):
+        monthly_interest = self.balance * (SavingAccount.interestRate / 12)
+        self.balance += monthly_interest
+        return monthly_interest
+
+class CurrentAccount(Account):
+    def __init__(self, account_number, balance, customer_id, overdraw_limit, **kwargs):
+        super().__init__(account_number, balance, customer_id)
+        self.overdraw_limit = overdraw_limit
+
+    def withdraw(self, amount):
+        if amount <= 0:
+            raise ValueError("Withdrawal amount must be positive.")
+        if amount > self.balance + self.overdraw_limit:
+            raise ValueError("Exceeds overdraw limit.")
+        self.balance -= amount
 
 class Customer:
-    def __init__(self, customer_id, name, address, contact):
+    def __init__(self, customer_id, name, address, contact, accounts=None):
         self.customer_id = customer_id
         self.name = name
         self.address = address
         self.contact = contact
+        self.accounts = accounts if accounts is not None else []
 
-class Account:
-    def __init__(self, account_number, balance, customer_id, acc_type, overdraw_limit=0):
-        self.account_number = account_number
-        self.balance = balance
-        self.customer_id = customer_id
-        self.acc_type = acc_type
-        self.overdraw_limit = overdraw_limit
+    def add_account(self, account_number):
+        self.accounts.append(account_number)
 
 class Transaction:
-    def __init__(self, txn_id, account_number, txn_type, amount, timestamp):
-        self.txn_id = txn_id
-        self.account_number = account_number
-        self.txn_type = txn_type
-        self.amount = amount
+    def __init__(self, transaction_id, timestamp, account_number, transaction_type, amount):
+        self.transaction_id = transaction_id
         self.timestamp = timestamp
+        self.account_number = account_number
+        self.transaction_type = transaction_type
+        self.amount = amount
 
 class BankApp:
     def __init__(self):
-        self.customers = self.load_file('customers.txt')
-        self.saving_accounts = self.load_file('saving_accounts.txt')
-        self.current_accounts = self.load_file('current_accounts.txt')
-        self.transactions = self.load_file('transactions.txt')
+        self.customers = {}
+        self.accounts = {}
+        self.transactions = []
+        self.load_data()
+    def load_data(self):
+        if os.path.exists('customers.txt'):
+            with open('customers.txt', 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    customer = Customer(**data)
+                    self.customers[customer.customer_id] = customer
+        if os.path.exists('saving_accounts.txt'):
+            with open('saving_accounts.txt', 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    acc = SavingAccount(**data)
+                    self.accounts[acc.account_number] = acc
+        if os.path.exists('current_accounts.txt'):
+            with open('current_accounts.txt', 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    acc = CurrentAccount(**data)
+                    self.accounts[acc.account_number] = acc
+        if os.path.exists('transactions.txt'):
+            with open('transactions.txt', 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    data = json.loads(line)
+                    txn = Transaction(**data)
+                    self.transactions.append(txn)
+                    data = json.loads(line)
+                    txn = Transaction(**data)
+                    self.transactions.append(txn)
 
-    def load_file(self, filename):
-        if not os.path.exists(filename):
-            return []
-        with open(filename, 'r') as f:
-            return [json.loads(line) for line in f if line.strip()]
-
-    def save_file(self, filename, data):
-        with open(filename, 'w') as f:
-            for item in data:
-                f.write(json.dumps(item) + '\n')
+    def save_data(self):
+        with open('customers.txt', 'w') as f:
+            for customer in self.customers.values():
+                f.write(json.dumps(customer.__dict__) + '\n')
+        with open('saving_accounts.txt', 'w') as f:
+            for acc in self.accounts.values():
+                if isinstance(acc, SavingAccount):
+                    f.write(json.dumps(acc.__dict__) + '\n')
+        with open('current_accounts.txt', 'w') as f:
+            for acc in self.accounts.values():
+                if isinstance(acc, CurrentAccount):
+                    f.write(json.dumps(acc.__dict__) + '\n')
+        with open('transactions.txt', 'w') as f:
+            for txn in self.transactions:
+                f.write(json.dumps(txn.__dict__) + '\n')
 
     def run(self):
+        print("Welcome to the Command Line Bank Application!")
         while True:
-            print("\n1. Create Customer\n2. Create Account\n3. Deposit\n4. Withdraw\n5. Check Balance\n6. View Transactions\n7. Exit")
-            choice = input("Choose: ")
-            if choice == '1':
-                self.create_customer()
-            elif choice == '2':
-                self.create_account()
-            elif choice == '3':
-                self.deposit()
-            elif choice == '4':
-                self.withdraw()
-            elif choice == '5':
-                self.check_balance()
-            elif choice == '6':
-                self.view_transactions()
-            elif choice == '7':
-                self.save_all()
-                print("Bye!")
-                break
-            else:
-                print("Invalid choice.")
+            print("\nOptions:")
+            print("1. Create Customer")
+            print("2. Create Account")
+            print("3. Make Transaction")
+            print("4. Check Balance")
+            print("5. View Transaction History")
+            print("6. Exit")
+            choice = input("Enter your choice: ")
+            try:
+                if choice == '1':
+                    self.create_customer()
+                elif choice == '2':
+                    self.create_account()
+                elif choice == '3':
+                    self.make_transaction()
+                elif choice == '4':
+                    self.check_balance()
+                elif choice == '5':
+                    self.view_transactions()
+                elif choice == '6':
+                    self.save_data()
+                    print("Goodbye!")
+                    break
+                else:
+                    print("Invalid choice. Try again.")
+            except Exception as e:
+                print(f"Error: {e}")
 
     def create_customer(self):
-        cid = input("Customer ID: ")
-        name = input("Name: ")
-        addr = input("Address: ")
-        contact = input("Contact: ")
-        self.customers.append(Customer(cid, name, addr, contact).__dict__)
-        self.save_file('customers.txt', self.customers)
+        customer_id = input("Enter customer ID: ")
+        name = input("Enter name: ")
+        address = input("Enter address: ")
+        contact = input("Enter contact: ")
+        customer = Customer(customer_id, name, address, contact)
+        self.customers[customer_id] = customer
         print("Customer created.")
+        self.save_data()
 
     def create_account(self):
-        cid = input("Customer ID: ")
-        if not any(c['customer_id'] == cid for c in self.customers):
+        customer_id = input("Enter customer ID: ")
+        if customer_id not in self.customers:
             print("Customer not found.")
             return
-        acc_num = input("Account Number: ")
-        acc_type = input("Type (saving/current): ").lower()
-        bal = float(input("Initial Balance: "))
+        acc_type = input("Account type (saving/current): ").lower()
+        account_number = input("Enter account number: ")
+        balance = float(input("Enter initial balance: "))
         if acc_type == 'saving':
-            acc = Account(acc_num, bal, cid, acc_type)
-            self.saving_accounts.append(acc.__dict__)
-            self.save_file('saving_accounts.txt', self.saving_accounts)
+            acc = SavingAccount(account_number, balance, customer_id)
+            self.accounts[account_number] = acc
         elif acc_type == 'current':
-            overdraw = float(input("Overdraw Limit: "))
-            acc = Account(acc_num, bal, cid, acc_type, overdraw)
-            self.current_accounts.append(acc.__dict__)
-            self.save_file('current_accounts.txt', self.current_accounts)
+            overdraw_limit = float(input("Enter overdraw limit: "))
+            acc = CurrentAccount(account_number, balance, customer_id, overdraw_limit)
+            self.accounts[account_number] = acc
         else:
             print("Invalid account type.")
             return
+        self.customers[customer_id].add_account(account_number)
         print("Account created.")
+        self.save_data()
 
-    def deposit(self):
-        acc_num = input("Account Number: ")
-        acc = next((a for a in self.saving_accounts if a['account_number'] == acc_num), None)
-        acc_type = 'saving'
-        if not acc:
-            acc = next((a for a in self.current_accounts if a['account_number'] == acc_num), None)
-            acc_type = 'current'
-        if not acc:
+    def make_transaction(self):
+        account_number = input("Enter account number: ")
+        if account_number not in self.accounts:
             print("Account not found.")
             return
-        amt = float(input("Amount: "))
-        if amt <= 0:
-            print("Amount must be positive.")
-            return
-        acc['balance'] += amt
-        txn = Transaction(f"TXN{len(self.transactions)+1}", acc_num, 'deposit', amt, datetime.now().isoformat()).__dict__
-        self.transactions.append(txn)
-        if acc_type == 'saving':
-            self.save_file('saving_accounts.txt', self.saving_accounts)
+        txn_type = input("Transaction type (deposit/withdraw): ").lower()
+        amount = float(input("Enter amount: "))
+        txn_id = f"TXN{len(self.transactions)+1}"
+        timestamp = datetime.now().isoformat()
+        acc = self.accounts[account_number]
+        if txn_type == 'deposit':
+            acc.deposit(amount)
+        elif txn_type == 'withdraw':
+            acc.withdraw(amount)
         else:
-            self.save_file('current_accounts.txt', self.current_accounts)
-        self.save_file('transactions.txt', self.transactions)
-        print("Deposited.")
-
-    def withdraw(self):
-        acc_num = input("Account Number: ")
-        acc = next((a for a in self.saving_accounts if a['account_number'] == acc_num), None)
-        acc_type = 'saving'
-        if not acc:
-            acc = next((a for a in self.current_accounts if a['account_number'] == acc_num), None)
-            acc_type = 'current'
-        if not acc:
-            print("Account not found.")
+            print("Invalid transaction type.")
             return
-        amt = float(input("Amount: "))
-        limit = acc['balance'] + (acc['overdraw_limit'] if acc_type == 'current' else 0)
-        if amt <= 0 or amt > limit:
-            print("Invalid or insufficient funds.")
-            return
-        acc['balance'] -= amt
-        txn = Transaction(f"TXN{len(self.transactions)+1}", acc_num, 'withdraw', amt, datetime.now().isoformat()).__dict__
+        txn = Transaction(txn_id, timestamp, account_number, txn_type, amount)
         self.transactions.append(txn)
-        if acc_type == 'saving':
-            self.save_file('saving_accounts.txt', self.saving_accounts)
-        else:
-            self.save_file('current_accounts.txt', self.current_accounts)
-        self.save_file('transactions.txt', self.transactions)
-        print("Withdrawn.")
+        print("Transaction successful.")
+        self.save_data()
 
     def check_balance(self):
-        acc_num = input("Account Number: ")
-        acc = next((a for a in self.saving_accounts if a['account_number'] == acc_num), None)
-        if not acc:
-            acc = next((a for a in self.current_accounts if a['account_number'] == acc_num), None)
-        if acc:
-            print(f"Balance: {acc['balance']}")
-        else:
+        account_number = input("Enter account number: ")
+        if account_number not in self.accounts:
             print("Account not found.")
+            return
+        acc = self.accounts[account_number]
+        print(f"Balance: {acc.get_balance()}")
 
     def view_transactions(self):
-        acc_num = input("Account Number: ")
-        txns = [t for t in self.transactions if t['account_number'] == acc_num]
+        account_number = input("Enter account number: ")
+        txns = [txn for txn in self.transactions if txn.account_number == account_number]
         if not txns:
-            print("No transactions.")
-        for t in txns:
-            print(f"{t['txn_id']} | {t['txn_type']} | {t['amount']} | {t['timestamp']}")
-
-    def save_all(self):
-        self.save_file('customers.txt', self.customers)
-        self.save_file('saving_accounts.txt', self.saving_accounts)
-        self.save_file('current_accounts.txt', self.current_accounts)
-        self.save_file('transactions.txt', self.transactions)
-
+            print("No transactions found.")
+            return
+        for txn in txns:
+            print(f"ID: {txn.transaction_id}, Time: {txn.timestamp}, Type: {txn.transaction_type}, Amount: {txn.amount}")

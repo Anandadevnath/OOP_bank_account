@@ -1,0 +1,1 @@
+{"customer_id": "123", "name": "raccoon", "address": "Agd", "contact": "64596464", "accounts": ["124", "124"]}

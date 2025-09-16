@@ -1,1 +1,5 @@
 {"customer_id": "123", "name": "raccoon", "address": "Agd", "contact": "64596464", "accounts": ["124", "124"]}
+{"customer_id": "221", "name": "haru", "address": "japan", "contact": "923552", "accounts": ["223"]}
+{"customer_id": "123", "name": "raccoon", "address": "ag", "contact": "01745241"}
+{"customer_id": "990", "name": "ananda", "address": "ag", "contact": "3566"}
+{"customer_id": "123", "name": "raccoon", "address": "agrabad", "contact": "98630636"}

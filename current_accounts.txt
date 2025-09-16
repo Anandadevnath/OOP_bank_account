@@ -1,1 +1,1 @@
-{"account_number": "124", "balance": 80.0, "customer_id": "123", "overdraw_limit": 100.0}
+{"account_number": "885", "balance": 733.0, "customer_id": "123", "acc_type": "current", "overdraw_limit": 1000.0}

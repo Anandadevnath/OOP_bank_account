@@ -1,2 +1,0 @@
-{"transaction_id": "TXN9", "timestamp": "2025-09-16T13:07:38.424018", "account_number": "124", "transaction_type": "withdraw", "amount": 20.0}
-{"transaction_id": "TXN9", "timestamp": "2025-09-16T13:07:38.424018", "account_number": "124", "transaction_type": "withdraw", "amount": 20.0}
